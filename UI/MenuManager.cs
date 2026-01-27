@@ -218,7 +218,7 @@ namespace SQLTeam.UI
 
         private void ShowReports()
         {
-            UIHelper.ShowHeader("📊 RAPPORTSENTRAL");
+            UIHelper.ShowHeader("📊 RAPPORTCENTRAL");
             Console.WriteLine("1) 🏆 Top 5 kunder (Flest köp)");
             Console.WriteLine("2) 💰 Totala intäkter per Event");
             var choice = Console.ReadLine();
