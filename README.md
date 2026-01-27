@@ -49,11 +49,6 @@ Flöde 3 – Sök/filtrera events
 2.	lista matchningar
 3.	visa antal sålda biljetter per event (JOIN + COUNT)
    
-Flöde  – Uppdatera event
-1.	“Update Event”
-2.	ändra datum / venue
-3.	verifiera att ändringen syns i listan
-
 Flöde  – Avboka / ta bort ticket
 1.	“My Tickets” (för en customer)
 2.	välj ticket → Delete
