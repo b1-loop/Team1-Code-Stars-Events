@@ -36,9 +36,7 @@ Domän (exempel):
 ------------------------------------------------------------------------------
 Menyflöden 
 Flöde – Lista + detaljvy
-1.	“List Events”
-2.	välj ett EventId
-3.	visa event + venue + organizer (JOIN)
+1.	“List of Events”
 
 Flöde  – Skapa kund + köp biljett
 1.	“Create Customer” (förnamn, efternamn, email)
