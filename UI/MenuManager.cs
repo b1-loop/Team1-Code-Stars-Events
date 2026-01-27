@@ -14,7 +14,7 @@ namespace SQLTeam.UI
         private readonly AppDbContext _db; // För säkerhetstestning
 
         // Sparar ner servicen så vi kan använda den i hela klassen
-        public MenuManager(DbService service)
+        public MenuManager(DbService service, AppDbContext db)
         {
             _service = service;
             _db = db; // Exponerar DbContext för säkerhetstest
