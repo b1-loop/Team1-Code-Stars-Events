@@ -1,13 +1,13 @@
 -----------------------------------------------------------
--- 1. SERVER-NIVÅ: SKAPA LOGIN (Dörrvakten)
+-- 1. SERVER-NIVÃ…: SKAPA LOGIN (DÃ¶rrvakten)
 -----------------------------------------------------------
 USE [master];
 GO
 
--- Skapa inloggningen på servern om den inte redan finns
+-- Skapa inloggningen pÃ¥ servern om den inte redan finns
 IF NOT EXISTS (SELECT * FROM sys.server_principals WHERE name = 'EventifyAppLogin')
 BEGIN
-    CREATE LOGIN EventifyAppLogin WITH PASSWORD = 'DittLösenord123!', 
+    CREATE LOGIN EventifyAppLogin WITH PASSWORD = 'DittLÃ¶senord123!', 
     DEFAULT_DATABASE = [EventifyDB], 
     CHECK_EXPIRATION = OFF, 
     CHECK_POLICY = OFF;
@@ -16,12 +16,12 @@ END
 GO
 
 -----------------------------------------------------------
--- 2. DATABAS-NIVÅ: SKAPA ANVÄNDARE OCH ROLLER
+-- 2. DATABAS-NIVÃ…: SKAPA ANVÃ„NDARE OCH ROLLER
 -----------------------------------------------------------
 USE EventifyDB;
 GO
 
--- Skapa användaren i databasen och koppla den till loginet
+-- Skapa anvÃ¤ndaren i databasen och koppla den till loginet
 IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = 'EventifyAppUser')
 BEGIN
     CREATE USER EventifyAppUser FOR LOGIN EventifyAppLogin;
@@ -37,41 +37,56 @@ BEGIN
 END
 GO
 
--- Lägg till användaren i rollen
+-- LÃ¤gg till anvÃ¤ndaren i rollen
 ALTER ROLE AppRole ADD MEMBER EventifyAppUser;
 GO
 
 -----------------------------------------------------------
--- 3. TILLDELA RÄTTIGHETER (GRANT)
+-- 3. TILLDELA RÃ„TTIGHETER (GRANT)
 -----------------------------------------------------------
+USE [EventifyDB];
+GO
 
--- Vy-rättigheter (Dessa används av MenuManager för listning och statistik)
+-- 1. Skapa databasroller
+IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = 'DatabaseAdminRole' AND type = 'R')
+    CREATE ROLE DatabaseAdminRole;
+
+IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = 'AppRole' AND type = 'R')
+    CREATE ROLE AppRole;
+GO
+
+-- 2. Tilldela rÃ¤ttigheter till DatabaseAdminRole (Full CRUD)
+-- Denna roll fÃ¥r gÃ¶ra allt i dbo-schemat
+GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::dbo TO DatabaseAdminRole;
+
+-- Vy-rÃ¤ttigheter (Dessa anvÃ¤nds av MenuManager fÃ¶r listning och statistik)
 GRANT SELECT ON OBJECT::dbo.vw_UpcomingEvents TO AppRole;
-GRANT SELECT ON OBJECT::dbo.vw_EventStatistics TO AppRole;
+GRANT SELECT ON OBJECT::dbo.vw_DetailedTicketReport TO AppRole;
+GRANT SELECT ON OBJECT::dbo.vw_EventSalesSummary TO AppRole;
 
--- Tabell-rättigheter
--- Vi ger SELECT på Events för att .ThenInclude(t => t.Event) ska fungera i C#
+-- Tabell-rÃ¤ttigheter
+-- Vi ger SELECT pÃ¥ Events fÃ¶r att .ThenInclude(t => t.Event) ska fungera i C#
 GRANT SELECT ON OBJECT::dbo.Events TO AppRole;
 
--- Rättigheter för att hantera kunder
+-- RÃ¤ttigheter fÃ¶r att hantera kunder
 GRANT INSERT, SELECT, UPDATE ON OBJECT::dbo.Customers TO AppRole;
 
--- Rättigheter för att hantera biljetter (inklusive radering)
+-- RÃ¤ttigheter fÃ¶r att hantera biljetter (inklusive radering)
 GRANT INSERT, SELECT, DELETE ON OBJECT::dbo.Tickets TO AppRole;
 
-PRINT 'Rättigheter (GRANT) tilldelade till AppRole.';
+PRINT 'RÃ¤ttigheter (GRANT) tilldelade till AppRole.';
 GO
 
 -----------------------------------------------------------
--- 4. BEGRÄNSA ÅTKOMST (DENY)
+-- 4. BEGRÃ„NSA Ã…TKOMST (DENY)
 -----------------------------------------------------------
 
--- Vi blockerar direktåtkomst till känsliga tabeller. 
--- Appen MÅSTE använda vyerna för att se denna information.
+-- Vi blockerar direktÃ¥tkomst till kÃ¤nsliga tabeller. 
+-- Appen MÃ…STE anvÃ¤nda vyerna fÃ¶r att se denna information.
 DENY SELECT ON OBJECT::dbo.Venues TO AppRole;
 DENY SELECT ON OBJECT::dbo.Organizers TO AppRole;
 
-PRINT 'Begränsningar (DENY) aktiverade för Venues och Organizers.';
+PRINT 'BegrÃ¤nsningar (DENY) aktiverade fÃ¶r Venues och Organizers.';
 GO
 
-PRINT '--- SÄKERHETSINSTÄLLNINGAR KLARA! ---';
+PRINT '--- SÃ„KERHETSINSTÃ„LLNINGAR KLARA! ---';
