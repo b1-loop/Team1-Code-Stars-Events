@@ -6,12 +6,10 @@ using System;
 
 namespace SQLTeam.Services
 {
-    // Denna klass hanterar all direkt kommunikation med databasen (Data Access Layer)
     public class DbService
     {
         private readonly AppDbContext _db;
 
-        // Konstruktor som tar emot databaskontexten (Dependency Injection)
         public DbService(AppDbContext db)
         {
             _db = db;
@@ -19,26 +17,26 @@ namespace SQLTeam.Services
 
         // --- KUNDER ---
 
-        // Hämtar alla kunder sorterade efter efternamn
+        // Hämtar alla kunder sorterade på efternamn
         public List<Customer> GetAllCustomers() =>
             _db.Customers.OrderBy(c => c.LastName).ToList();
 
-        // Skapar och sparar en ny kund i databasen
+        // Lägger till en ny kund i databasen
         public void AddCustomer(string fName, string lName, string email)
         {
             _db.Customers.Add(new Customer { FirstName = fName, LastName = lName, Email = email });
-            _db.SaveChanges(); // Skickar ändringarna till SQL Server
+            _db.SaveChanges();
         }
 
         // --- EVENTS ---
 
-        // Hämtar alla events och inkluderar information om lokalen (Venue) via en Join
-        public List<Event> GetAllEvents() =>
-            _db.Events.Include(e => e.Venue).OrderBy(e => e.StartDate).ToList();
+        // Hämtar data från vyn (säkerställer att vi inte bryter mot DENY-regler i SQL)
+        public List<VwUpcomingEvent> GetUpcomingEvents() =>
+            _db.VwUpcomingEvents.OrderBy(e => e.StartDate).ToList();
 
         // --- BILJETTER ---
 
-        // Skapar en ny biljett och kopplar ihop Kund-ID med Event-ID
+        // Skapar en ny biljett-koppling mellan kund och event
         public void CreateTicket(int cId, int eId, string type, decimal price)
         {
             _db.Tickets.Add(new Ticket
@@ -52,26 +50,27 @@ namespace SQLTeam.Services
             _db.SaveChanges();
         }
 
-        // Hämtar alla biljetter och inkluderar relaterad data för både kund och event
+        // Hämtar alla biljetter och inkluderar information om vem som köpt och till vilket event
         public List<Ticket> GetAllTickets() =>
             _db.Tickets.Include(t => t.Customer).Include(t => t.Event).ToList();
 
-        // Söker upp en specifik biljett baserat på dess Primärnyckel (ID)
+        // Hittar en specifik biljett via dess ID
         public Ticket GetTicketById(int id) => _db.Tickets.Find(id);
 
-        // Tar bort en biljett från databasen
+        // Tar bort en biljett permanent
         public void DeleteTicket(Ticket ticket)
         {
             _db.Tickets.Remove(ticket);
             _db.SaveChanges();
         }
 
-        // Sparar manuella ändringar (används t.ex. vid uppdatering av objekt)
-        public void SaveChanges() => _db.SaveChanges();
-
         // --- RAPPORTER & STATISTIK ---
 
-        // Hämtar de 5 kunder som köpt flest biljetter
+        // Använder statistik-vyn för att få fram försäljningssiffror
+        public List<VwEventStatistic> GetEventStatisticsReport() =>
+            _db.VwEventStatistics.OrderByDescending(s => s.TotalRevenue).ToList();
+
+        // En enkel rapport för att se vilka kunder som handlat mest
         public dynamic GetTopCustomersReport()
         {
             return _db.Customers
@@ -81,22 +80,21 @@ namespace SQLTeam.Services
                 .ToList();
         }
 
-        // Summerar de totala biljettintäkterna för varje event
-        public dynamic GetRevenueReport()
-        {
-            return _db.Events
-                .Select(e => new { e.Title, Total = e.Tickets.Sum(t => t.Price) })
-                .ToList();
-        }
+        // --- RELATIONER (HÄR ÄR DEN SAKNADE METODEN) ---
 
-        // Hämtar alla kunder inklusive deras biljetter och de events biljetterna hör till
+        // Hämtar kunder, deras biljetter och namnet på eventet för varje biljett
         public List<Customer> GetCustomersWithTickets()
         {
+            // Vi använder .Include för att hämta biljetter 
+            // och .ThenInclude för att gå ett steg djupare och hämta själva eventet
             return _db.Customers
                 .Include(c => c.Tickets)
-                .ThenInclude(t => t.Event)
+                    .ThenInclude(t => t.Event)
                 .OrderBy(c => c.LastName)
                 .ToList();
         }
+
+        // Sparar manuella ändringar som görs på objekt
+        public void SaveChanges() => _db.SaveChanges();
     }
 }

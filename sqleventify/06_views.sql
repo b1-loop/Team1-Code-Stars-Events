@@ -6,6 +6,7 @@ GO
 -----------------------------------------------------------
 CREATE VIEW vw_UpcomingEvents AS
 SELECT 
+    E.EventId,
     E.Title AS [Event],
     E.Description,
     E.StartDate,
