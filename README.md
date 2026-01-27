@@ -12,7 +12,6 @@
 
 - Event
 - Arrangörer
-- Lokaler
 - Kunder
 - Biljetter
 
