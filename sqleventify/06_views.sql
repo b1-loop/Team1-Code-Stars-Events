@@ -1,11 +1,13 @@
 USE EventifyDB;
 GO
--- 1. PUBLIC VIEW: vw_UpcomingEvents
--- Syfte: Visar information om kommande events för en besökare.
--- Döljer interna ID-nummer, skapandedatum och arrangörers kontaktinfo.
+
 -----------------------------------------------------------
-CREATE VIEW vw_UpcomingEvents AS
+-- VY 1: Kommande Events (Används i huvudmenyn)
+-- Inkluderar EventId för att C#-modellen ska fungera.
+-----------------------------------------------------------
+CREATE OR ALTER VIEW vw_UpcomingEvents AS
 SELECT 
+    E.EventId,         
     E.Title AS [Event],
     E.Description,
     E.StartDate,
@@ -14,27 +16,40 @@ SELECT
     O.Name AS [Organizer]
 FROM Events E
 JOIN Venues V ON E.VenueId = V.VenueId
-JOIN Organizers O ON E.OrganizerId = O.OrganizerId;
+JOIN Organizers O ON E.OrganizerId = O.OrganizerId
+WHERE E.StartDate >= GETDATE();
 GO
 
 -----------------------------------------------------------
--- 2. REPORT VIEW: vw_EventStatistics
--- Syfte: En vy som Console Appen kan använda för att visa försäljning.
--- Kombinerar data från Events och Tickets för en snabb överblick.
+-- VY 2: Detaljerad Biljettrapport (Användarvy)
+-- Visar köp utan att exponera rådata från tabellerna.
 -----------------------------------------------------------
-CREATE VIEW vw_EventStatistics AS
+CREATE OR ALTER VIEW vw_DetailedTicketReport AS
 SELECT 
-    E.EventId,
-    E.Title AS [EventTitle],
-    COUNT(T.TicketId) AS [TicketsSold],
-    SUM(T.Price) AS [TotalRevenue],
-    MAX(V.Capacity) AS [MaxCapacity]
+    T.TicketId,
+    C.FirstName + ' ' + C.LastName AS CustomerName,
+    E.Title AS EventName,
+    E.StartDate,
+    V.Name AS VenueName,
+    T.PurchaseDate
+FROM Tickets T
+JOIN Customers C ON T.CustomerId = C.CustomerId
+JOIN Events E ON T.EventId = E.EventId
+JOIN Venues V ON E.VenueId = V.VenueId;
+GO
+
+-----------------------------------------------------------
+-- VY 3: Försäljningsstatistik (Rapportvy)
+-- Uppfyller kravet på statistik och sammanställning.
+-----------------------------------------------------------
+CREATE OR ALTER VIEW vw_EventSalesSummary AS
+SELECT 
+    E.Title AS EventName,
+    COUNT(T.TicketId) AS TicketsSold,
+    V.Capacity AS TotalCapacity,
+    (V.Capacity - COUNT(T.TicketId)) AS RemainingSeats
 FROM Events E
 LEFT JOIN Tickets T ON E.EventId = T.EventId
 JOIN Venues V ON E.VenueId = V.VenueId
-GROUP BY E.EventId, E.Title;
+GROUP BY E.Title, V.Capacity;
 GO
-
--- Exempel på hur man testar vyerna:
- SELECT * FROM vw_UpcomingEvents;
- SELECT * FROM vw_EventStatistics WHERE TicketsSold > 0;

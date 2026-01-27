@@ -11,11 +11,13 @@ namespace SQLTeam.UI
     public class MenuManager
     {
         private readonly DbService _service;
+        private readonly AppDbContext _db; // För säkerhetstestning
 
         // Konstruktor: Vi kräver en fungerande DbService för att starta menyn
-        public MenuManager(DbService service)
+        public MenuManager(DbService service, AppDbContext db)
         {
             _service = service;
+            _db = db; // Exponerar DbContext för säkerhetstest
         }
 
         // Huvudloopen som håller igång programmet tills användaren väljer "0"
@@ -32,6 +34,7 @@ namespace SQLTeam.UI
                 Console.WriteLine("6) 🗑️  Radera biljett");
                 Console.WriteLine("7) 📊 Rapporter & Statistik");
                 Console.WriteLine("8) 🎫 Visa Kunder & deras Biljetter");
+                Console.WriteLine("9) 🔐 Testa Databassäkerhet");
                 Console.WriteLine("0) ❌ Avsluta");
                 Console.Write("\nVal: ");
 
@@ -64,6 +67,7 @@ namespace SQLTeam.UI
                 case "6": DeleteTicket(); break;
                 case "7": ShowReports(); break;
                 case "8": ListCustomersWithTickets(); break;
+                case "9": TestSecurity(); break;
                 default:
                     UIHelper.ShowError("Felaktigt val, försök igen.");
                     UIHelper.PressAnyKey();
@@ -254,6 +258,49 @@ namespace SQLTeam.UI
                 }
                 Console.WriteLine("---------------------------------");
             }
+            UIHelper.PressAnyKey();
+        }
+
+        private void TestSecurity()
+        {
+            UIHelper.ShowHeader("🛡️ SÄKERHETSTEST: INTEGRITETSKONTROLL");
+
+            try
+            {
+                Console.WriteLine("Systemet försöker läsa direkt från tabellen 'Organizers'...");
+
+                // Denna rad triggar en Exception om inloggningen tillhör AppRole (pga DENY)
+                // Om inloggningen tillhör DatabaseAdminRole tillåts anropet (pga GRANT)
+                var organizers = _db.Organizers.ToList();
+
+                // Om vi når hit betyder det att inloggningen har Admin-rättigheter
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine("\n🔓 ÅTKOMST BEVILJAD: Inloggad som Administratör");
+                Console.ResetColor();
+                Console.WriteLine("Hämtar data direkt från den skyddade tabellen:");
+
+                foreach (var o in organizers)
+                {
+                    Console.WriteLine($" - ID: {o.OrganizerId} | Namn: {o.Name}");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Om vi hamnar här har SQL Server blockerat anropet
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("\n🔒 ÅTKOMST NEKAD: Din roll saknar rättigheter för råtabeller.");
+                Console.ResetColor();
+
+                Console.WriteLine("\nFörklaring för läraren:");
+                Console.WriteLine("- Applikationen använder just nu 'EventifyAppLogin'.");
+                Console.WriteLine("- Denna användare tillhör 'AppRole' som har en 'DENY' på tabellen 'Organizers'.");
+                Console.WriteLine("- För att se datan måste man använda vyn eller byta till Admin-inloggningen.");
+
+                // Skriv ut det faktiska felet från SQL Server för att bevisa att det är databasen som nekar
+                if (ex.InnerException != null)
+                    Console.WriteLine($"\nFelmeddelande från SQL Server: {ex.InnerException.Message}");
+            }
+
             UIHelper.PressAnyKey();
         }
     }
