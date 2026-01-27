@@ -9,6 +9,9 @@ namespace Team1_Code_Stars_Events.Models;
 [Keyless]
 public partial class VwUpcomingEvent
 {
+    // LÄGG TILL DENNA RAD:
+    public int EventId { get; set; }
+
     [StringLength(150)]
     public string Event { get; set; } = null!;
 

@@ -1,36 +1,36 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SQLTeam.Services;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Team1_Code_Stars_Events.Helpers;
 using Team1_Code_Stars_Events.Models;
 
 namespace SQLTeam.UI
 {
-    // Denna klass ansvarar för allt användargränssnitt och menyflöden
     public class MenuManager
     {
         private readonly DbService _service;
 
-        // Konstruktor: Vi kräver en fungerande DbService för att starta menyn
+        // Sparar ner servicen så vi kan använda den i hela klassen
         public MenuManager(DbService service)
         {
             _service = service;
         }
 
-        // Huvudloopen som håller igång programmet tills användaren väljer "0"
         public void Run()
         {
             while (true)
             {
+                // Rensar och visar menyn
                 UIHelper.ShowHeader("🎟️  EVENTIFY ADMIN SYSTEM 2026");
                 Console.WriteLine("1) 👥 Lista ALLA Kunder");
-                Console.WriteLine("2) 📅 Lista ALLA Events");
+                Console.WriteLine("2) 📅 Lista ALLA Events (Säker Vy)");
                 Console.WriteLine("3) 🎫 Köp biljett (Skapa relation)");
-                Console.WriteLine("4) 👤 Registrera ny kund (Transaktion)");
+                Console.WriteLine("4) 👤 Registrera ny kund");
                 Console.WriteLine("5) ⚙️  Uppdatera biljettyp & pris");
                 Console.WriteLine("6) 🗑️  Radera biljett");
-                Console.WriteLine("7) 📊 Rapporter & Statistik");
+                Console.WriteLine("7) 📊 Rapporter & Statistik (Via Vy)");
                 Console.WriteLine("8) 🎫 Visa Kunder & deras Biljetter");
                 Console.WriteLine("0) ❌ Avsluta");
                 Console.Write("\nVal: ");
@@ -39,21 +39,21 @@ namespace SQLTeam.UI
 
                 try
                 {
-                    if (choice == "0") break; // Bryter loopen och stänger programmet
+                    if (choice == "0") break; // Stänger ner programmet
                     HandleChoice(choice);
                 }
                 catch (Exception ex)
                 {
-                    // Fångar upp oväntade fel så att inte hela programmet kraschar
+                    // Fångar alla fel så appen inte dör, visar istället vad som gick snett
                     UIHelper.ShowError($"Ett tekniskt fel uppstod: {ex.Message}");
                     UIHelper.PressAnyKey();
                 }
             }
         }
 
-        // Navigerar användaren till rätt metod baserat på menyval
         private void HandleChoice(string choice)
         {
+            // Skickar användaren vidare baserat på siffra
             switch (choice)
             {
                 case "1": ListCustomers(); break;
@@ -76,7 +76,7 @@ namespace SQLTeam.UI
         private void ListCustomers()
         {
             UIHelper.ShowHeader("👥 KUNDREGISTER");
-            var customers = _service.GetAllCustomers(); // Hämtar data från servicen
+            var customers = _service.GetAllCustomers();
 
             if (!customers.Any()) Console.WriteLine("Inga kunder hittades.");
             else
@@ -89,14 +89,21 @@ namespace SQLTeam.UI
 
         private void ListEvents()
         {
-            UIHelper.ShowHeader("📅 EVENEMANGSÖVERSIKT");
-            var events = _service.GetAllEvents();
+            UIHelper.ShowHeader("📅 EVENEMANGSÖVERSIKT (Säker Vy)");
+
+            // Vi hämtar från vyn för att undvika 'Access Denied' på råtabellerna
+            var events = _service.GetUpcomingEvents();
 
             if (!events.Any()) Console.WriteLine("Inga events hittades.");
             else
             {
                 foreach (var e in events)
-                    Console.WriteLine($" 🎭 [ID: {e.EventId,-3}] {e.Title,-20} | 📍 {e.Venue?.Name}");
+                {
+                    // Notera: Vi använder e.Event (från vyn) istället för e.Title (från tabellen)
+                    Console.WriteLine($" 🎭 {e.Event,-20} | 📍 {e.Venue,-15} | 🏢 {e.Organizer}");
+                    Console.WriteLine($"    📅 {e.StartDate:yyyy-MM-dd HH:mm} | 🏙️  {e.City}");
+                    Console.WriteLine("    ---------------------------------------------------------");
+                }
             }
             UIHelper.PressAnyKey();
         }
@@ -105,25 +112,26 @@ namespace SQLTeam.UI
         {
             UIHelper.ShowHeader("🎫 NYTT BILJETTKÖP");
 
-            // Visar hjälpdata för att användaren ska veta vilka ID:n som finns
+            // Visar hjälplistor så användaren vet vilka ID:n som kan skrivas in
             Console.WriteLine("Alla registrerade kunder:");
             foreach (var c in _service.GetAllCustomers())
                 Console.WriteLine($" {c.CustomerId}: {c.FirstName} {c.LastName}");
 
             Console.WriteLine("\nAlla tillgängliga events:");
-            foreach (var e in _service.GetAllEvents())
-                Console.WriteLine($" {e.EventId}: {e.Title}");
+            var upcomingEvents = _service.GetUpcomingEvents();
+            foreach (var e in upcomingEvents)
+                Console.WriteLine($" {e.EventId}: {e.Event}");
 
-            // Validerar indata med UIHelper
+            // Läser in ID från användaren (valideras som siffror via UIHelper)
             int cId = UIHelper.GetValidInt("\nAnge Kund-ID: ");
             int eId = UIHelper.GetValidInt("Ange Event-ID: ");
 
+            // Hanterar priser och typer lokalt i menyn
             Console.WriteLine("\nVälj typ: [1] Regular (500kr) [2] Student (300kr) [3] VIP (1200kr) [4] Backstage (2500kr)");
             string type = "";
             decimal price = 0;
             var choice = Console.ReadLine();
 
-            // Mappar menyval till faktiska värden
             switch (choice)
             {
                 case "1": type = "Regular"; price = 500m; break;
@@ -133,7 +141,7 @@ namespace SQLTeam.UI
                 default: UIHelper.ShowError("Ogiltigt val."); return;
             }
 
-            // Skickar informationen till servicen för lagring
+            // Skickar till servicen som sköter databasanropet
             _service.CreateTicket(cId, eId, type, price);
             UIHelper.ShowSuccess("Biljett registrerad!");
             UIHelper.PressAnyKey();
@@ -158,27 +166,28 @@ namespace SQLTeam.UI
 
             if (!tickets.Any()) { Console.WriteLine("Inga biljetter hittades."); UIHelper.PressAnyKey(); return; }
 
-            // Visar befintliga biljetter
+            // Listar biljetter så vi kan välja rätt ID
             foreach (var t in tickets)
                 Console.WriteLine($" [ID: {t.TicketId,-3}] {t.Customer?.FirstName} {t.Customer?.LastName,-15} -> {t.Event?.Title}");
 
             int tId = UIHelper.GetValidInt("\nAnge ID för biljetten du vill ändra: ");
-            var ticket = _service.GetTicketById(tId); // Hämtar objektet via servicen
+            var ticket = _service.GetTicketById(tId);
 
             if (ticket == null) { UIHelper.ShowError("Biljetten hittades inte."); UIHelper.PressAnyKey(); return; }
 
+            // Visar vad biljetten har för värden just nu
             Console.WriteLine($"\nVald biljett: {ticket.Type} ({ticket.Price:C})");
             Console.WriteLine("Ny typ: [1] Regular [2] Student [3] VIP [4] Backstage");
 
             var choice = Console.ReadLine();
-            // Uppdaterar objektets värden (State Change)
+            // Ändrar värdena på det hämtade objektet
             if (choice == "1") { ticket.Type = "Regular"; ticket.Price = 500m; }
             else if (choice == "2") { ticket.Type = "Student"; ticket.Price = 300m; }
             else if (choice == "3") { ticket.Type = "VIP"; ticket.Price = 1200m; }
             else if (choice == "4") { ticket.Type = "Backstage"; ticket.Price = 2500m; }
             else { UIHelper.ShowError("Ogiltigt val."); UIHelper.PressAnyKey(); return; }
 
-            // Ber servicen spara de ändrade värdena i databasen
+            // Sparar ändringarna i databasen
             _service.SaveChanges();
             UIHelper.ShowSuccess("Biljetten har uppdaterats!");
             UIHelper.PressAnyKey();
@@ -199,7 +208,7 @@ namespace SQLTeam.UI
 
             if (ticket != null)
             {
-                // Bekräftelse för att undvika oavsiktlig radering
+                // Dubbelkoll så användaren inte raderar av misstag
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine($"\n⚠️  VARNING: Radera biljetten?");
                 Console.Write("Bekräfta med (J/N): ");
@@ -220,19 +229,26 @@ namespace SQLTeam.UI
         {
             UIHelper.ShowHeader("📊 RAPPORTCENTRAL");
             Console.WriteLine("1) 🏆 Top 5 kunder (Flest köp)");
-            Console.WriteLine("2) 💰 Totala intäkter per Event");
+            Console.WriteLine("2) 💰 Försäljningsstatistik per Event (Via Vy)");
             var choice = Console.ReadLine();
 
             if (choice == "1")
             {
-                // Hämtar data som redan är färdigprocessad i DbService
+                // Hämtar anonym data för en enkel lista
                 var report = _service.GetTopCustomersReport();
                 foreach (var r in report) Console.WriteLine($" ⭐ {r.Name,-20} : {r.Count} st");
             }
             else if (choice == "2")
             {
-                var report = _service.GetRevenueReport();
-                foreach (var r in report) Console.WriteLine($" 💵 {r.Title,-20} : {r.Total:C}");
+                // Hämtar färdigberäknad statistik från SQL-vyn
+                var stats = _service.GetEventStatisticsReport();
+                Console.WriteLine($"\n{"EVENT",-20} | {"SÅLDA",-8} | {"INTÄKT",-12} | {"KAPACITET",-10}");
+                Console.WriteLine(new string('-', 60));
+
+                foreach (var s in stats)
+                {
+                    Console.WriteLine($" {s.EventTitle,-19} | {s.TicketsSold,-8} | {s.TotalRevenue,10:C} | {s.MaxCapacity,8}");
+                }
             }
             UIHelper.PressAnyKey();
         }
@@ -240,6 +256,7 @@ namespace SQLTeam.UI
         private void ListCustomersWithTickets()
         {
             UIHelper.ShowHeader("🎟️  KUNDER OCH DERAS BOKADE EVENTS");
+            // Hämtar kunder och inkluderar deras biljett-samlingar (Eager Loading)
             var customers = _service.GetCustomersWithTickets();
 
             foreach (var c in customers)
@@ -248,7 +265,7 @@ namespace SQLTeam.UI
                 if (!c.Tickets.Any()) Console.WriteLine("   🚫 Inga biljetter bokade.");
                 else
                 {
-                    // Loopar igenom kundens biljetter och deras relaterade event
+                    // Loopar igenom varje biljett kunden äger
                     foreach (var t in c.Tickets)
                         Console.WriteLine($"   🎫 {t.Event?.Title,-20} | Typ: {t.Type,-10} | Pris: {t.Price:C}");
                 }
