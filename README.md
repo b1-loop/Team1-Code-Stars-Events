@@ -35,12 +35,12 @@ Domän (exempel):
 
 ------------------------------------------------------------------------------
 Menyflöden 
-Flöde 1 – Lista + detaljvy
+Flöde – Lista + detaljvy
 1.	“List Events”
 2.	välj ett EventId
 3.	visa event + venue + organizer (JOIN)
 
-Flöde 2 – Skapa kund + köp biljett
+Flöde  – Skapa kund + köp biljett
 1.	“Create Customer” (förnamn, efternamn, email)
 2.	“Buy Ticket” → välj customer + event
 3.	se att ticket skapas och kopplas korrekt
@@ -49,12 +49,12 @@ Flöde 3 – Sök/filtrera events
 2.	lista matchningar
 3.	visa antal sålda biljetter per event (JOIN + COUNT)
    
-Flöde 4 – Uppdatera event
+Flöde  – Uppdatera event
 1.	“Update Event”
 2.	ändra datum / venue
 3.	verifiera att ändringen syns i listan
 
-Flöde 5 – Avboka / ta bort ticket
+Flöde  – Avboka / ta bort ticket
 1.	“My Tickets” (för en customer)
 2.	välj ticket → Delete
 3.	verifiera att ticket uppdateras i rapport
