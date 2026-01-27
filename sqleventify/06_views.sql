@@ -2,12 +2,12 @@ USE EventifyDB;
 GO
 
 -----------------------------------------------------------
--- VY 1: Kommande Events (Används i huvudmenyn)
--- Inkluderar EventId för att C#-modellen ska fungera.
+-- VY 1: Kommande Events (AnvÃ¤nds i huvudmenyn)
+-- Inkluderar EventId fÃ¶r att C#-modellen ska fungera.
 -----------------------------------------------------------
 CREATE OR ALTER VIEW vw_UpcomingEvents AS
 SELECT 
-    E.EventId,         
+    E.EventId,
     E.Title AS [Event],
     E.Description,
     E.StartDate,
@@ -21,8 +21,8 @@ WHERE E.StartDate >= GETDATE();
 GO
 
 -----------------------------------------------------------
--- VY 2: Detaljerad Biljettrapport (Användarvy)
--- Visar köp utan att exponera rådata från tabellerna.
+-- VY 2: Detaljerad Biljettrapport (AnvÃ¤ndarvy)
+-- Visar kÃ¶p utan att exponera rÃ¥data frÃ¥n tabellerna.
 -----------------------------------------------------------
 CREATE OR ALTER VIEW vw_DetailedTicketReport AS
 SELECT 
@@ -39,8 +39,8 @@ JOIN Venues V ON E.VenueId = V.VenueId;
 GO
 
 -----------------------------------------------------------
--- VY 3: Försäljningsstatistik (Rapportvy)
--- Uppfyller kravet på statistik och sammanställning.
+-- VY 3: FÃ¶rsÃ¤ljningsstatistik (Rapportvy)
+-- Uppfyller kravet pÃ¥ statistik och sammanstÃ¤llning.
 -----------------------------------------------------------
 CREATE OR ALTER VIEW vw_EventSalesSummary AS
 SELECT 
