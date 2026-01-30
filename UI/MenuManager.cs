@@ -35,6 +35,7 @@ namespace SQLTeam.UI
                 Console.WriteLine("7) 📊 Rapporter & Statistik (Via Vy)");
                 Console.WriteLine("8) 🎫 Visa Kunder & deras Biljetter");
                 Console.WriteLine("9) 🔐 Testa Databassäkerhet");
+                Console.WriteLine("10) 🎫 Filtrera på biljett typ");
                 Console.WriteLine("0) ❌ Avsluta");
                 Console.Write("\nVal: ");
 
@@ -68,6 +69,7 @@ namespace SQLTeam.UI
                 case "7": ShowReports(); break;
                 case "8": ListCustomersWithTickets(); break;
                 case "9": TestSecurity(); break;
+                case "10": FilterTicketsByType(); break;
                 default:
                     UIHelper.ShowError("Felaktigt val, försök igen.");
                     UIHelper.PressAnyKey();
@@ -318,6 +320,32 @@ namespace SQLTeam.UI
                     Console.WriteLine($"\nFelmeddelande från SQL Server: {ex.InnerException.Message}");
             }
 
+            UIHelper.PressAnyKey();
+        }
+        // metod för att filtrera biljetter baserat på typ
+        private void FilterTicketsByType()
+        {
+            UIHelper.ShowHeader("🎫 FILTRERA BILJETTER EFTER TYP");
+            Console.WriteLine("Ange biljett typ att filtrera på (t.ex. Regular, Student, VIP, Backstage): ");
+            string type = Console.ReadLine()?.Trim();
+            if (string.IsNullOrWhiteSpace(type))
+            {
+                UIHelper.ShowError("Ogiltig biljett typ.");
+                UIHelper.PressAnyKey();
+                return;
+            }
+            var filteredTickets = _service.GetTicketsByType(type);
+            if (!filteredTickets.Any())
+            {
+                UIHelper.ShowError($"Inga biljetter av typen '{type}' hittades.");
+            }
+            else
+            {
+                foreach (var t in filteredTickets)
+                {
+                    Console.WriteLine($" [ID: {t.TicketId,-3}] {t.Customer?.FirstName} {t.Customer?.LastName,-15} | Event: {t.Event?.Title} | Typ: {t.Type} | Pris: {t.Price:C}");
+                }
+            }
             UIHelper.PressAnyKey();
         }
     }

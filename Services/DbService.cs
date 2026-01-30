@@ -96,5 +96,13 @@ namespace SQLTeam.Services
 
         // Sparar manuella ändringar som görs på objekt
         public void SaveChanges() => _db.SaveChanges();
+
+        // Returnerar en lista av biljetter med en specifik typ
+        public List<Ticket> GetTicketsByType(string type) =>
+        _db.Tickets
+            .Include(t => t.Customer)
+            .Include(t => t.Event)
+            .Where(t => t.Type == type)
+            .ToList();
     }
 }
