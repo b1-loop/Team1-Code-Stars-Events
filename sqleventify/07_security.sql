@@ -1,53 +1,36 @@
 -----------------------------------------------------------
--- 1. SERVER-NIVÅ: SKAPA LOGIN (Dörrvakten)
+-- 1. SERVER-NIVÅ: SKAPA TVÅ LOGINS (Dörrvakter)
 -----------------------------------------------------------
 USE [master];
 GO
 
--- Skapa inloggningen på servern om den inte redan finns
+-- 1. Skapa Login för den vanliga applikationen (Begränsad)
 IF NOT EXISTS (SELECT * FROM sys.server_principals WHERE name = 'EventifyAppLogin')
 BEGIN
     CREATE LOGIN EventifyAppLogin WITH PASSWORD = 'DittLösenord123!', 
-    DEFAULT_DATABASE = [EventifyDB], 
-    CHECK_EXPIRATION = OFF, 
-    CHECK_POLICY = OFF;
-    PRINT 'Login "EventifyAppLogin" skapat.';
+    DEFAULT_DATABASE = [EventifyDB], CHECK_POLICY = OFF;
 END
-GO
 
------------------------------------------------------------
--- 2. DATABAS-NIVÅ: SKAPA ANVÄNDARE OCH ROLLER
------------------------------------------------------------
-USE EventifyDB;
-GO
-
--- Skapa användaren i databasen och koppla den till loginet
-IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = 'EventifyAppUser')
+-- 2. Skapa Login för administratören (Full behörighet)
+IF NOT EXISTS (SELECT * FROM sys.server_principals WHERE name = 'EventifyAdminLogin')
 BEGIN
-    CREATE USER EventifyAppUser FOR LOGIN EventifyAppLogin;
-    PRINT 'User "EventifyAppUser" skapat och kopplat till Login.';
+    CREATE LOGIN EventifyAdminLogin WITH PASSWORD = 'AdminPassword123!', 
+    DEFAULT_DATABASE = [EventifyDB], CHECK_POLICY = OFF;
 END
 GO
 
--- Skapa rollen AppRole
-IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = 'AppRole' AND type = 'R')
-BEGIN
-    CREATE ROLE AppRole;
-    PRINT 'Rollen "AppRole" skapad.';
-END
-GO
-
--- Lägg till användaren i rollen
-ALTER ROLE AppRole ADD MEMBER EventifyAppUser;
+-- Ge båda rättighet att ansluta till SQL Server
+GRANT CONNECT SQL TO EventifyAppLogin;
+GRANT CONNECT SQL TO EventifyAdminLogin;
 GO
 
 -----------------------------------------------------------
--- 3. TILLDELA RÄTTIGHETER (GRANT)
+-- 2. DATABAS-NIVÅ: SKAPA ROLLER OCH RÄTTIGHETER
 -----------------------------------------------------------
 USE [EventifyDB];
 GO
 
--- 1. Skapa databasroller
+-- Skapa roller om de inte finns
 IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = 'DatabaseAdminRole' AND type = 'R')
     CREATE ROLE DatabaseAdminRole;
 
@@ -55,38 +38,40 @@ IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = 'AppRole' AND 
     CREATE ROLE AppRole;
 GO
 
--- 2. Tilldela rättigheter till DatabaseAdminRole (Full CRUD)
--- Denna roll får göra allt i dbo-schemat
+-- A. ADMIN: Full kontroll över allt i dbo-schemat
 GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::dbo TO DatabaseAdminRole;
 
--- Vy-rättigheter (Dessa används av MenuManager för listning och statistik)
+-- B. APPUSER: Begränsad åtkomst via vyer och specifika tabeller
 GRANT SELECT ON OBJECT::dbo.vw_UpcomingEvents TO AppRole;
 GRANT SELECT ON OBJECT::dbo.vw_DetailedTicketReport TO AppRole;
 GRANT SELECT ON OBJECT::dbo.vw_EventSalesSummary TO AppRole;
 
--- Tabell-rättigheter
--- Vi ger SELECT på Events för att .ThenInclude(t => t.Event) ska fungera i C#
 GRANT SELECT ON OBJECT::dbo.Events TO AppRole;
-
--- Rättigheter för att hantera kunder
 GRANT INSERT, SELECT, UPDATE ON OBJECT::dbo.Customers TO AppRole;
-
--- Rättigheter för att hantera biljetter (inklusive radering)
 GRANT INSERT, SELECT, DELETE ON OBJECT::dbo.Tickets TO AppRole;
 
-PRINT 'Rättigheter (GRANT) tilldelade till AppRole.';
-GO
-
------------------------------------------------------------
--- 4. BEGRÄNSA ÅTKOMST (DENY)
------------------------------------------------------------
-
--- Vi blockerar direktåtkomst till känsliga tabeller. 
--- Appen MÅSTE använda vyerna för att se denna information.
+-- C. INTEGRITETSKONTROLL: Explicit NEKA åtkomst till känsliga tabeller
 DENY SELECT ON OBJECT::dbo.Venues TO AppRole;
 DENY SELECT ON OBJECT::dbo.Organizers TO AppRole;
-
-PRINT 'Begränsningar (DENY) aktiverade för Venues och Organizers.';
 GO
 
-PRINT '--- SÄKERHETSINSTÄLLNINGAR KLARA! ---';
+-----------------------------------------------------------
+-- 3. DATABAS-NIVÅ: KOPPLA USERS TILL LOGINS OCH ROLLER
+-----------------------------------------------------------
+
+-- Vi rensar gamla users för att undvika mappningsfel vid nykörning
+IF EXISTS (SELECT * FROM sys.database_principals WHERE name = 'EventifyAppUser') DROP USER EventifyAppUser;
+IF EXISTS (SELECT * FROM sys.database_principals WHERE name = 'EventifyAdminUser') DROP USER EventifyAdminUser;
+GO
+
+-- Skapa användare kopplade till loginen
+CREATE USER EventifyAppUser FOR LOGIN EventifyAppLogin;
+CREATE USER EventifyAdminUser FOR LOGIN EventifyAdminLogin;
+GO
+
+-- Lägg till användarna i sina respektive roller
+ALTER ROLE AppRole ADD MEMBER EventifyAppUser;
+ALTER ROLE DatabaseAdminRole ADD MEMBER EventifyAdminUser;
+GO
+
+PRINT '--- SÄKERHETSINSTÄLLNINGAR MED DUBBLA ROLLER KLARA! ---';
