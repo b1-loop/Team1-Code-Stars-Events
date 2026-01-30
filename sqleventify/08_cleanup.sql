@@ -1,36 +1,14 @@
-USE EventifyDB;
-GO 
+USE master;
+GO
 
------------------------------------------------------------
--- 1. TA BORT VYER
------------------------------------------------------------
-DROP VIEW IF EXISTS vw_EventStatistics;
-DROP VIEW IF EXISTS vw_UpcomingEvents;
-
------------------------------------------------------------
--- 2. TA BORT TABELLER (VIKTIG ORDNING!)
------------------------------------------------------------
--- Vi måste börja med "barnen" (de med Foreign Keys) 
--- och sluta med "föräldrarna".
-
-DROP TABLE IF EXISTS Tickets;    -- Refererar till Events och Customers
-DROP TABLE IF EXISTS Events;     -- Refererar till Venues och Organizers
-DROP TABLE IF EXISTS Customers;
-DROP TABLE IF EXISTS Organizers;
-DROP TABLE IF EXISTS Venues;
-
------------------------------------------------------------
--- 3. TA BORT SÄKERHETSOBJEKT
------------------------------------------------------------
--- Ta bort medlemmen från rollen först (valfritt vid drop, men snyggt)
-IF EXISTS (SELECT * FROM sys.database_principals WHERE name = 'EventifyAppUser')
+-- Tvinga bort alla anslutningar och radera databasen
+IF EXISTS (SELECT * FROM sys.databases WHERE name = 'EventifyDB')
 BEGIN
-    DROP USER EventifyAppUser;
+    ALTER DATABASE EventifyDB SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+    DROP DATABASE EventifyDB;
+    PRINT 'Databasen EventifyDB har raderats helt.';
 END
-
-IF EXISTS (SELECT * FROM sys.database_principals WHERE name = 'AppRole')
+ELSE
 BEGIN
-    DROP ROLE AppRole;
+    PRINT 'Databasen EventifyDB hittades inte.';
 END
-
-PRINT 'Databasen är nu rensad och redo för en ny körning!';
